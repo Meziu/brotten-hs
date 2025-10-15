@@ -55,11 +55,11 @@ main = do
                 y = fromMaybe 40 my
                 grid = mandelbrotrect (-2, 1) (1, -1) (x, y)
 
-                -- Generate pixel vector directly using unfoldrN (no intermediate lists!)
+                -- Generate pixel vector directly using unfoldrN
                 totalBytes = x * y * 3
                 pixelVec = V.unfoldrN totalBytes unfoldPixel (grid, 0)
 
-                -- Unfold function: streams through nested grid, emitting 3 bytes per pixel
+                -- Unfold function: stream through the grid, emitting 3 bytes per pixel
                 unfoldPixel ([], _) = Nothing
                 unfoldPixel ([]:rows, _) = unfoldPixel (rows, 0)
                 unfoldPixel ((point@(_,_,iters):cols):rows, n)
