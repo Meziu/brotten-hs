@@ -1,3 +1,9 @@
+import System.Environment (getArgs)
+import Text.Read (readMaybe)
+import Data.Maybe (fromMaybe)
+import Codec.Picture
+import qualified Data.Vector.Storable as V
+
 -- Generates the mandelbrot set out of a rectangular area.
 -- Takes as input the topleft corner of the rect, the bottom right corner and the resolution of the grid.
 mandelbrotrect :: (Float, Float) -> (Float, Float) -> (Int, Int) -> [[(Float, Float, Int)]]
@@ -37,6 +43,35 @@ printMandelbrot grid = mapM_ putStrLn [ [ charFor (re, im, iters) | (re, im, ite
             | k < 255 = 'x'
             | otherwise = '.'
 
+main :: IO ()
 main = do
-    let grid = mandelbrotrect (-2, 1) (1, -1) (60, 25)
-    printMandelbrot grid
+    args <- getArgs
+
+    case args of
+        (xStr:yStr:_) -> do
+            let mx = readMaybe xStr :: Maybe Int
+                my = readMaybe yStr :: Maybe Int
+                x = fromMaybe 120 mx
+                y = fromMaybe 40 my
+                grid = mandelbrotrect (-2, 1) (1, -1) (x, y)
+
+                -- Generate pixel vector directly using unfoldrN (no intermediate lists!)
+                totalBytes = x * y * 3
+                pixelVec = V.unfoldrN totalBytes unfoldPixel (grid, 0)
+
+                -- Unfold function: streams through nested grid, emitting 3 bytes per pixel
+                unfoldPixel ([], _) = Nothing
+                unfoldPixel ([]:rows, _) = unfoldPixel (rows, 0)
+                unfoldPixel ((point@(_,_,iters):cols):rows, n)
+                    | n < 3 = Just (v, ((point:cols):rows, n + 1))
+                    | otherwise = unfoldPixel (cols:rows, 0)
+                    where v = fromIntegral (255 - iters)
+
+                -- Convert matrix
+                img = Image x y pixelVec :: Image PixelRGB8
+
+            writePng "mandelbrot.png" img
+            putStrLn "Wrote image to \"mandelbrot.png\""
+
+        _ -> do
+            putStrLn "Insert 2 numbers as parameters for the x,y resolution of the image."
